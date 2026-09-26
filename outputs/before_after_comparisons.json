@@ -1,0 +1,66 @@
+[
+  {
+    "index": 0,
+    "true_label": "agricultural",
+    "source": "uc_merced",
+    "before_blip_base": "a field with a tractor in the middle",
+    "after_blip_lora": "this is a field",
+    "reference_template": "This satellite image shows agricultural or pasture land with visible field patterns."
+  },
+  {
+    "index": 1,
+    "true_label": "forest",
+    "source": "eurosat",
+    "before_blip_base": "a black background with a white border",
+    "after_blip_lora": "this satellite image shows the surface of the ocean",
+    "reference_template": "This satellite image shows a forested area with dense tree cover."
+  },
+  {
+    "index": 2,
+    "true_label": "urban",
+    "source": "eurosat",
+    "before_blip_base": "an aerial view of a cemetery in the countryside",
+    "after_blip_lora": "this satellite image shows a satellite image of a city",
+    "reference_template": "This satellite image shows a built-up urban area with buildings and structures."
+  },
+  {
+    "index": 3,
+    "true_label": "urban",
+    "source": "uc_merced",
+    "before_blip_base": "a satellite image of a neighborhood",
+    "after_blip_lora": "this satellite image shows a neighborhood with houses",
+    "reference_template": "This satellite image shows a built-up urban area with buildings and structures."
+  },
+  {
+    "index": 4,
+    "true_label": "forest",
+    "source": "uc_merced",
+    "before_blip_base": "a plane flying over a forest filled with trees",
+    "after_blip_lora": "this satellite image shows a satellite image of a forest",
+    "reference_template": "This satellite image shows a forested area with dense tree cover."
+  },
+  {
+    "index": 5,
+    "true_label": "water",
+    "source": "uc_merced",
+    "before_blip_base": "a road with a white line on it",
+    "after_blip_lora": "this is a river",
+    "reference_template": "This satellite image shows a river, lake, or other body of water."
+  },
+  {
+    "index": 6,
+    "true_label": "agricultural",
+    "source": "eurosat",
+    "before_blip_base": "a green and brown camouflage camouflage fabric",
+    "after_blip_lora": "this satellite image shows a patch of land with a patch of land with a patch of land with a patch",
+    "reference_template": "This satellite image shows agricultural or pasture land with visible field patterns."
+  },
+  {
+    "index": 7,
+    "true_label": "water",
+    "source": "eurosat",
+    "before_blip_base": "the river is running through the land",
+    "after_blip_lora": "this satellite image shows the area where the river is",
+    "reference_template": "This satellite image shows a river, lake, or other body of water."
+  }
+]

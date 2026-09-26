@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SatQuery AI — Satellite VQA & Land-Cover Intelligence</title>
+  <meta name="description" content="Agentic Visual Question Answering and captioning system for satellite imagery adapted via LoRA fine-tuning. Built for ISRO geospatial analysis problem statements.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>">
+</head>
+<body>
+
+  <!-- =========================================================================
+       App Header / Status Bar
+       ========================================================================= -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-section">
+        <div class="brand-logo-glow">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="2"></circle>
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>SatQuery AI <span class="brand-tag">SIH Prototype</span></h1>
+          <p class="brand-subtitle">Agentic VLM Pipeline for Satellite Image Captioning, VQA & Disaster Response</p>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Live Backend Pipeline Status -->
+        <div id="pipelineStatusBadge" class="pipeline-status-badge" title="Live status fetched from GET /health">
+          <div id="statusDot" class="status-dot"></div>
+          <span id="statusText">Checking pipeline...</span>
+        </div>
+
+        <!-- Optical-SAR Fusion Active Toggle -->
+        <div class="feature-toggle-wrap" title="Toggle Sentinel-1 Dual-Pol C-Band Synthetic Aperture Radar (SAR) Fusion">
+          <label class="switch-control">
+            <input type="checkbox" id="sarToggle">
+            <span class="switch-slider"></span>
+          </label>
+          <span class="toggle-text">Optical-SAR Fusion</span>
+          <span class="badge-active-sar" id="sarActiveBadge">OFF</span>
+        </div>
+
+        <!-- Indian Regional Languages Dropdown -->
+        <div class="lang-selector-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <select id="languageSelect" class="lang-select-dropdown" aria-label="Select Regional Language">
+            <option value="en" selected>English (English)</option>
+            <option value="hi">हिन्दी (Hindi)</option>
+            <option value="ta">தமிழ் (Tamil)</option>
+            <option value="te">తెలుగు (Telugu)</option>
+            <option value="bn">বাংলা (Bengali)</option>
+            <option value="mr">मराठी (Marathi)</option>
+            <option value="kn">ಕನ್ನಡ (Kannada)</option>
+            <option value="ml">മലയാളം (Malayalam)</option>
+            <option value="gu">ગુજરાતી (Gujarati)</option>
+            <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- =========================================================================
+       Main Application Grid
+       ========================================================================= -->
+  <main class="app-main">
+
+    <!-- LEFT COLUMN: Imagery & ROI Canvas Workspace -->
+    <section class="panel" id="imageryWorkspacePanel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+          <h2 class="panel-title">1. Satellite Imagery & ROI Selection</h2>
+        </div>
+        <span class="panel-badge" id="imageDimensionsBadge">No Image Loaded</span>
+      </div>
+
+      <!-- Quick Demo Imagery Selector -->
+      <div class="imagery-loader-strip">
+        <div class="strip-label">
+          <span>Quick Load Demo Imagery (UC Merced / EuroSAT)</span>
+          <span style="font-size: 0.68rem; color: var(--accent-cyan);">1-Click Test</span>
+        </div>
+        <div class="sample-chips-row">
+          <button type="button" class="sample-chip" data-sample="forest">
+            <span class="chip-dot forest"></span>
+            <span>Forest Cover</span>
+          </button>
+          <button type="button" class="sample-chip" data-sample="urban">
+            <span class="chip-dot urban"></span>
+            <span>Urban & Housing</span>
+          </button>
+          <button type="button" class="sample-chip" data-sample="water">
+            <span class="chip-dot water"></span>
+            <span>Water / River</span>
+          </button>
+          <button type="button" class="sample-chip" data-sample="agricultural">
+            <span class="chip-dot agri"></span>
+            <span>Agricultural Land</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas Viewport / Dropzone -->
+      <div class="viewport-container" id="viewportContainer">
+        <!-- Drag & Drop Upload Zone -->
+        <div class="dropzone-overlay" id="dropzoneOverlay">
+          <div class="dropzone-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <div class="dropzone-text">
+            <h3>Drag & drop satellite image here</h3>
+            <p>Supports Sentinel-2, Landsat, UC Merced (PNG, JPG, TIFF)</p>
+          </div>
+          <input type="file" id="fileInput" accept="image/png,image/jpeg,image/tiff" style="display: none;">
+        </div>
+
+        <!-- Interactive Canvas Wrapper -->
+        <div class="canvas-wrapper hidden" id="canvasWrapper">
+          <canvas id="imageCanvas"></canvas>
+
+          <!-- Floating Canvas Toolbar -->
+          <div class="canvas-controls-bar">
+            <button type="button" class="canvas-tool-btn" id="btnSelectAllRoi" title="Select Entire Image as ROI">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              </svg>
+              <span>Full ROI</span>
+            </button>
+            <button type="button" class="canvas-tool-btn" id="btnClearRoi" title="Clear current bounding box">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              <span>Clear</span>
+            </button>
+            <button type="button" class="canvas-tool-btn" id="btnChangeImage" title="Upload a different image">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85.83 6.72 2.24L21 8"></path>
+                <polyline points="21 3 21 8 16 8"></polyline>
+              </svg>
+              <span>Change</span>
+            </button>
+          </div>
+
+          <!-- Dynamic ROI Coordinate Badge -->
+          <div class="roi-coordinates-badge" id="roiCoordinatesBadge">
+            ROI: 0 × 0 px [X:0, Y:0]
+          </div>
+        </div>
+      </div>
+
+      <!-- Natural Language Query & Action -->
+      <div class="query-section">
+        <div class="input-label-row">
+          <label for="queryInput" class="input-label">2. Natural Language Question / Prompt (Optional)</label>
+          <span style="font-size: 0.7rem; color: var(--text-muted);">Leave blank for autonomous captioning</span>
+        </div>
+
+        <div class="query-input-wrap">
+          <div class="query-input-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+          <input type="text" id="queryInput" class="query-input" placeholder="Ask ANY complex question e.g. 'Evaluate wildfire risk', 'Check water quality', 'Estimate urban density'...">
+        </div>
+
+        <!-- Fast Complex Query Chips -->
+        <div class="query-chips-row">
+          <button type="button" class="query-chip" data-query="Describe the land cover shown in this satellite image.">Describe Land Cover</button>
+          <button type="button" class="query-chip" data-query="Assess urban building density and road network connectivity.">Urban Density & Roads</button>
+          <button type="button" class="query-chip" data-query="Evaluate wildfire hazard, drought aridity, and fuel moisture status.">Wildfire & Drought Risk</button>
+          <button type="button" class="query-chip" data-query="Is there any evidence of deforestation, logging, or tree canopy loss?">Deforestation & Canopy</button>
+          <button type="button" class="query-chip" data-query="Check water quality, sediment load, and flood inundation risk.">Water Quality & Flood</button>
+          <button type="button" class="query-chip" data-query="Analyze agricultural crop vigor, parcel patterns, and irrigation status.">Crop Health & Irrigation</button>
+          <button type="button" class="query-chip" data-query="Compare vegetation coverage against concrete built-up structures.">Vegetation vs Built-Up</button>
+          <button type="button" class="query-chip" data-query="Is this ground suitable as an emergency helicopter landing zone?">Helicopter Landing Zone</button>
+        </div>
+
+        <!-- Primary CTA -->
+        <button type="button" class="btn-analyze" id="btnRunAnalysis" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Run VLM Analysis</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Intelligence & Results Stream -->
+    <section class="panel" id="resultsStreamPanel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <h2 class="panel-title">3. Model Intelligence & Outputs</h2>
+        </div>
+        <span class="panel-badge" id="resultsStatusBadge">Awaiting Input</span>
+      </div>
+
+      <!-- State 1: Idle State -->
+      <div class="results-idle-state" id="resultsIdleState">
+        <div class="radar-graphic">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+            <line x1="12" y1="12" x2="19" y2="19"></line>
+          </svg>
+        </div>
+        <div class="idle-text">
+          <h3>No Analysis Conducted Yet</h3>
+          <p>Load satellite imagery, draw an ROI bounding box, and click "Run VLM Analysis" to trigger inference.</p>
+        </div>
+      </div>
+
+      <!-- State 2: Loading / In-Progress State -->
+      <div class="results-loading-state hidden" id="resultsLoadingState">
+        <div class="loading-spinner-ring"></div>
+        <div class="loading-steps-list">
+          <div class="loading-step active" id="step1">[1/3] Server-side ROI cropping & tensor encoding...</div>
+          <div class="loading-step" id="step2">[2/3] BLIP + LoRA conditional forward pass...</div>
+          <div class="loading-step" id="step3">[3/3] Softmax probability & GeoJSON synthesis...</div>
+        </div>
+      </div>
+
+      <!-- State 3: Active Results Card -->
+      <div class="results-active-state hidden" id="resultsActiveState">
+        <!-- ROI Thumbnail & Meta -->
+        <div class="roi-preview-row">
+          <div class="roi-thumb-wrap">
+            <img id="roiThumbImg" class="roi-thumb-img" alt="Analyzed ROI thumbnail">
+          </div>
+          <div class="roi-meta-details">
+            <div class="roi-meta-title">Analyzed Region of Interest</div>
+            <div class="roi-meta-coords" id="roiMetaCoords">Coordinates: [X:0, Y:0, W:0, H:0]</div>
+            <div class="roi-meta-query" id="roiMetaQuery">Query: Autonomous Captioning</div>
+          </div>
+        </div>
+
+        <!-- Generated Contextual Paragraph Answer Card -->
+        <div class="caption-card">
+          <div class="caption-header-row">
+            <div class="caption-label">Comprehensive Analytical Intelligence</div>
+            <div class="caption-meta-tags">
+              <span class="lang-pill" id="captionLangBadge">English (en)</span>
+              <span class="intent-pill" id="captionIntentBadge">General Land Cover</span>
+            </div>
+          </div>
+          <div class="caption-text" id="captionText">—</div>
+          <div class="caption-subtext" id="captionSubtext"></div>
+        </div>
+
+        <!-- Optical-SAR Dual-Pol Radar Fusion Card -->
+        <div class="sar-fusion-card hidden" id="sarFusionCard">
+          <div class="sar-header-row">
+            <div class="sar-title-group">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="2" x2="12" y2="12"></line>
+                <line x1="12" y1="12" x2="19" y2="19"></line>
+              </svg>
+              <span class="sar-title">Sentinel-1 C-Band Dual-Pol SAR Fusion</span>
+            </div>
+            <span class="sar-status-chip" id="sarStatusChip">Active Penetration</span>
+          </div>
+          <div class="sar-metrics-grid">
+            <div class="sar-metric-box">
+              <div class="sar-metric-label">VV Backscatter</div>
+              <div class="sar-metric-val" id="sarValVV">-11.2 dB</div>
+            </div>
+            <div class="sar-metric-box">
+              <div class="sar-metric-label">VH Cross-Pol</div>
+              <div class="sar-metric-val" id="sarValVH">-16.5 dB</div>
+            </div>
+            <div class="sar-metric-box">
+              <div class="sar-metric-label">VH/VV Ratio</div>
+              <div class="sar-metric-val" id="sarValRatio">-5.3 dB</div>
+            </div>
+            <div class="sar-metric-box">
+              <div class="sar-metric-label">Scattering Mechanism</div>
+              <div class="sar-metric-val highlight" id="sarValScattering">Volume Canopy</div>
+            </div>
+          </div>
+          <div class="sar-dielectric-desc" id="sarDielectricDesc">
+            Dual-polarized radar penetrates meteorological cloud layers, confirming dielectric structural properties.
+          </div>
+        </div>
+
+        <!-- Visual Confidence Gauge & Telemetry -->
+        <div class="confidence-card">
+          <div class="confidence-header-row">
+            <span class="confidence-label">Generation Confidence (Token Probabilities)</span>
+            <span class="confidence-value" id="confidenceValue">0.0%</span>
+          </div>
+          <div class="confidence-bar-track">
+            <div class="confidence-bar-fill" id="confidenceBarFill" style="width: 0%;"></div>
+          </div>
+          <div class="telemetry-badges-row">
+            <span class="telemetry-badge" id="telemetryModel">BLIP + LoRA</span>
+            <span class="telemetry-badge" id="telemetryLatency">Latency: — ms</span>
+            <span class="telemetry-badge" id="telemetryThreshold">Threshold: 55%</span>
+          </div>
+        </div>
+
+        <!-- Human Review Safety Banner -->
+        <div class="human-review-banner hidden" id="humanReviewBanner">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <div>
+            <div class="review-title">Flagged for Human Review</div>
+            <div class="review-desc">Token confidence fell below the 55% operational threshold. Flagged for human supervisor triage in compliance with safety policy.</div>
+          </div>
+        </div>
+
+        <!-- Export Action Center -->
+        <div class="export-actions-row">
+          <button type="button" class="btn-export" id="btnDownloadGeoJSON" title="Export GeoJSON polygon feature for QGIS / ArcGIS">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download GeoJSON</span>
+          </button>
+
+          <button type="button" class="btn-export" id="btnDownloadAudit" title="Download machine-readable JSON audit trail">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Download Audit (JSON)</span>
+          </button>
+
+          <button type="button" class="btn-export btn-export-pdf" id="btnDownloadPDF" title="Download official ISRO/SIH formatted PDF audit certificate">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+              <line x1="9" y1="11" x2="15" y2="11"></line>
+            </svg>
+            <span>Download Audit (PDF)</span>
+          </button>
+        </div>
+
+        <!-- GeoJSON, Audit & Agentic Inspector Drawer -->
+        <div>
+          <div class="inspector-tabs">
+            <button type="button" class="tab-btn active" id="tabBtnGeoJson">GeoJSON Feature</button>
+            <button type="button" class="tab-btn" id="tabBtnAudit">Audit Trail Record</button>
+            <button type="button" class="tab-btn" id="tabBtnAgentic">Agentic Reasoning</button>
+          </div>
+          <div class="inspector-code-box" id="inspectorContent">{}</div>
+        </div>
+      </div>
+
+      <!-- State 4: Error State -->
+      <div class="error-banner hidden" id="errorBanner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        <span id="errorMessageText">An unexpected error occurred while communicating with the model backend.</span>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

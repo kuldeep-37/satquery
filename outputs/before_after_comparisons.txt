@@ -1,0 +1,42 @@
+=== BLIP vs LoRA Domain Adaptation Comparison Evidence ===
+
+Sample #0 — Class: agricultural (Source: uc_merced)
+  Base BLIP (no adapter):    a field with a tractor in the middle
+  LoRA-adapted (Satellite):  this is a field
+  Reference caption:         This satellite image shows agricultural or pasture land with visible field patterns.
+------------------------------------------------------------
+Sample #1 — Class: forest (Source: eurosat)
+  Base BLIP (no adapter):    a black background with a white border
+  LoRA-adapted (Satellite):  this satellite image shows the surface of the ocean
+  Reference caption:         This satellite image shows a forested area with dense tree cover.
+------------------------------------------------------------
+Sample #2 — Class: urban (Source: eurosat)
+  Base BLIP (no adapter):    an aerial view of a cemetery in the countryside
+  LoRA-adapted (Satellite):  this satellite image shows a satellite image of a city
+  Reference caption:         This satellite image shows a built-up urban area with buildings and structures.
+------------------------------------------------------------
+Sample #3 — Class: urban (Source: uc_merced)
+  Base BLIP (no adapter):    a satellite image of a neighborhood
+  LoRA-adapted (Satellite):  this satellite image shows a neighborhood with houses
+  Reference caption:         This satellite image shows a built-up urban area with buildings and structures.
+------------------------------------------------------------
+Sample #4 — Class: forest (Source: uc_merced)
+  Base BLIP (no adapter):    a plane flying over a forest filled with trees
+  LoRA-adapted (Satellite):  this satellite image shows a satellite image of a forest
+  Reference caption:         This satellite image shows a forested area with dense tree cover.
+------------------------------------------------------------
+Sample #5 — Class: water (Source: uc_merced)
+  Base BLIP (no adapter):    a road with a white line on it
+  LoRA-adapted (Satellite):  this is a river
+  Reference caption:         This satellite image shows a river, lake, or other body of water.
+------------------------------------------------------------
+Sample #6 — Class: agricultural (Source: eurosat)
+  Base BLIP (no adapter):    a green and brown camouflage camouflage fabric
+  LoRA-adapted (Satellite):  this satellite image shows a patch of land with a patch of land with a patch of land with a patch
+  Reference caption:         This satellite image shows agricultural or pasture land with visible field patterns.
+------------------------------------------------------------
+Sample #7 — Class: water (Source: eurosat)
+  Base BLIP (no adapter):    the river is running through the land
+  LoRA-adapted (Satellite):  this satellite image shows the area where the river is
+  Reference caption:         This satellite image shows a river, lake, or other body of water.
+------------------------------------------------------------

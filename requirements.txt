@@ -1,0 +1,10 @@
+datasets
+transformers
+accelerate
+peft
+pillow
+torchao
+torch
+streamlit
+streamlit-drawable-canvas
+matplotlib

@@ -1,0 +1,10 @@
+{
+  "num_epochs": 3,
+  "batch_size": 4,
+  "learning_rate": 5e-05,
+  "loss_history": [
+    8.2728,
+    7.1413,
+    6.3698
+  ]
+}
