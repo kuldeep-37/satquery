@@ -9,7 +9,6 @@ __pycache__/
 .venv/
 venv/
 tests/
-training/
 scratch/
 *.pdf
 frontend/

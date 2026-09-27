@@ -25,6 +25,8 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 # Copy application backend code, adapter checkpoints, and sample assets
 COPY app/ ./app/
 COPY backend/ ./backend/
+COPY training/ ./training/
+COPY data_prep/ ./data_prep/
 COPY outputs/ ./outputs/
 
 # Create runtime directories for continuous active learning persistence

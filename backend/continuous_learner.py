@@ -30,9 +30,24 @@ from backend.qa_memory import (
     get_memory_stats,
     mark_as_trained,
 )
-from training.train_lora import attach_lora, ADAPTER_SAVE_PATH
+try:
+    from training.train_lora import attach_lora, ADAPTER_SAVE_PATH
+except ImportError:
+    ADAPTER_SAVE_PATH = "outputs/blip-lora-satellite-adapter"
+
+    def attach_lora(model):
+        from peft import LoraConfig, get_peft_model
+        lora_config = LoraConfig(
+            r=8,
+            lora_alpha=16,
+            target_modules=["query", "value"],
+            lora_dropout=0.05,
+            bias="none",
+        )
+        return get_peft_model(model, lora_config)
 
 logger = logging.getLogger("satquery-learner")
+
 
 
 class MemoryQADataset(Dataset):
