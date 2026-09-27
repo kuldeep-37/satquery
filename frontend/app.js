@@ -18,6 +18,23 @@ function getBackendUrl() {
 
 let API_BASE_URL = getBackendUrl();
 
+// Automatically add headers to bypass tunnel reminder pages on cloud tunnels
+const originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+  if (typeof url === 'string' && (url.includes('loca.lt') || url.includes('/health') || url.includes('/analyze') || url.includes('/memory') || url.includes('/train'))) {
+    options.headers = options.headers || {};
+    if (options.headers instanceof Headers) {
+      options.headers.set('Bypass-Tunnel-Reminder', 'true');
+    } else if (Array.isArray(options.headers)) {
+      options.headers.push(['Bypass-Tunnel-Reminder', 'true']);
+    } else {
+      options.headers['Bypass-Tunnel-Reminder'] = 'true';
+    }
+  }
+  return originalFetch(url, options);
+};
+
+
 
 // State
 let loadedImage = null;       // HTMLImageElement
