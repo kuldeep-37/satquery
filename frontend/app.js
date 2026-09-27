@@ -4,10 +4,20 @@
  * live backend communication (/health, /analyze), and export generation.
  */
 
-// Configuration
-const API_BASE_URL = window.location.origin.includes(':8000') 
-  ? window.location.origin 
-  : 'http://127.0.0.1:8000';
+// Configuration & Dynamic Backend Endpoint Resolution
+function getBackendUrl() {
+  const custom = localStorage.getItem('satquery_backend_url');
+  if (custom && custom.trim()) {
+    return custom.trim().replace(/\/+$/, '');
+  }
+  if (window.location.origin.includes(':8000')) {
+    return window.location.origin;
+  }
+  return 'http://127.0.0.1:8000';
+}
+
+let API_BASE_URL = getBackendUrl();
+
 
 // State
 let loadedImage = null;       // HTMLImageElement
@@ -1005,9 +1015,95 @@ if (btnExportDataset) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// 9. Remote Backend Endpoint Configuration Modal (Vercel Support)
+// ---------------------------------------------------------------------------
+const endpointModalOverlay = document.getElementById('endpointModalOverlay');
+const endpointModalClose = document.getElementById('endpointModalClose');
+const endpointInput = document.getElementById('endpointInput');
+const endpointSaveBtn = document.getElementById('endpointSaveBtn');
+const endpointResetBtn = document.getElementById('endpointResetBtn');
+const presetLocal = document.getElementById('presetLocal');
+const presetOrigin = document.getElementById('presetOrigin');
+const apiSettingsBtn = document.getElementById('apiSettingsBtn');
+const pipelineStatusBadge = document.getElementById('pipelineStatusBadge');
+
+function openEndpointModal() {
+  if (!endpointModalOverlay || !endpointInput) return;
+  endpointInput.value = API_BASE_URL;
+  endpointModalOverlay.classList.remove('hidden');
+}
+
+function closeEndpointModal() {
+  if (endpointModalOverlay) {
+    endpointModalOverlay.classList.add('hidden');
+  }
+}
+
+if (apiSettingsBtn) {
+  apiSettingsBtn.addEventListener('click', openEndpointModal);
+}
+
+if (pipelineStatusBadge) {
+  pipelineStatusBadge.addEventListener('click', openEndpointModal);
+}
+
+if (endpointModalClose) {
+  endpointModalClose.addEventListener('click', closeEndpointModal);
+}
+
+if (endpointModalOverlay) {
+  endpointModalOverlay.addEventListener('click', (e) => {
+    if (e.target === endpointModalOverlay) closeEndpointModal();
+  });
+}
+
+if (presetLocal) {
+  presetLocal.addEventListener('click', () => {
+    if (endpointInput) endpointInput.value = 'http://127.0.0.1:8000';
+  });
+}
+
+if (presetOrigin) {
+  presetOrigin.addEventListener('click', () => {
+    if (endpointInput) endpointInput.value = window.location.origin;
+  });
+}
+
+if (endpointResetBtn) {
+  endpointResetBtn.addEventListener('click', () => {
+    localStorage.removeItem('satquery_backend_url');
+    API_BASE_URL = getBackendUrl();
+    if (endpointInput) endpointInput.value = API_BASE_URL;
+    showToast('Reset backend endpoint to default.');
+    checkHealth();
+    fetchMemory();
+    closeEndpointModal();
+  });
+}
+
+if (endpointSaveBtn) {
+  endpointSaveBtn.addEventListener('click', () => {
+    const val = (endpointInput?.value || '').trim().replace(/\/+$/, '');
+    if (!val) {
+      localStorage.removeItem('satquery_backend_url');
+      API_BASE_URL = getBackendUrl();
+      showToast('Reset backend endpoint to default.');
+    } else {
+      localStorage.setItem('satquery_backend_url', val);
+      API_BASE_URL = val;
+      showToast(`Connected backend API to: ${val}`, 'success');
+    }
+    checkHealth();
+    fetchMemory();
+    closeEndpointModal();
+  });
+}
+
 // Auto-load Forest demo on startup for seamless first look & fetch memory
 window.addEventListener('DOMContentLoaded', () => {
   const defaultChip = document.querySelector('.sample-chip[data-sample="forest"]');
   if (defaultChip) defaultChip.click();
   fetchMemory();
 });
+

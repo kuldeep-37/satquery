@@ -19,3 +19,8 @@ ENV/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Runtime data & temp memory crops
+outputs/memory_crops/*.png
+!outputs/memory_crops/.gitkeep
+outputs/qa_memory.db
