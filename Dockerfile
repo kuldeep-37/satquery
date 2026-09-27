@@ -5,7 +5,8 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=8000
+    PORT=8000 \
+    PYTHONPATH=/app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,6 +23,7 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application backend code, adapter checkpoints, and sample assets
+COPY app/ ./app/
 COPY backend/ ./backend/
 COPY outputs/ ./outputs/
 
