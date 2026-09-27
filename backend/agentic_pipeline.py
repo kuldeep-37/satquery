@@ -501,6 +501,7 @@ def run_agentic_pipeline(
     confidence: float,
     enable_sar: bool = False,
     language: str = "en",
+    prior_memories: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Execute the end-to-end Agentic Pipeline and produce multi-language paragraph intelligence."""
     # 1. Intent Classification
@@ -520,6 +521,15 @@ def run_agentic_pipeline(
         metrics=metrics,
         sar_info=sar_data,
     )
+
+    # Contextual memory enrichment if prior relevant inquiry is found
+    if prior_memories and len(prior_memories) > 0:
+        top_prior = prior_memories[0]
+        memory_note = (
+            f" [Prior Analysis Continuity: Correlated with earlier inquiry '{top_prior.get('question', '')}', "
+            f"noting observed condition '{top_prior.get('short_caption', '')}']"
+        )
+        english_paragraph += memory_note
 
     # 5. Multi-Language Regional Synthesis (Zero-Latency Local Engine)
     final_output = english_paragraph
@@ -556,4 +566,5 @@ def run_agentic_pipeline(
         "language": language,
         "optical_metrics": metrics,
         "sar_fusion": sar_data,
+        "prior_memories": prior_memories or [],
     }

@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "timestamp": "2026-09-27 18:02:06",
+  "samples_trained": 3,
+  "epochs": 3,
+  "batch_size": 2,
+  "learning_rate": 5e-05,
+  "duration_sec": 12.82,
+  "loss_history": [
+    7.7777,
+    7.6152,
+    7.5841
+  ],
+  "initial_loss": 7.7777,
+  "final_loss": 7.5841,
+  "loss_reduction": 0.1936
+}

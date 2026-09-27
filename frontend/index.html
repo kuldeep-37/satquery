@@ -369,12 +369,13 @@
           </button>
         </div>
 
-        <!-- GeoJSON, Audit & Agentic Inspector Drawer -->
+        <!-- GeoJSON, Audit, Agentic & Memory Inspector Drawer -->
         <div>
           <div class="inspector-tabs">
             <button type="button" class="tab-btn active" id="tabBtnGeoJson">GeoJSON Feature</button>
             <button type="button" class="tab-btn" id="tabBtnAudit">Audit Trail Record</button>
             <button type="button" class="tab-btn" id="tabBtnAgentic">Agentic Reasoning</button>
+            <button type="button" class="tab-btn" id="tabBtnMemory">Q&A Memory (Live)</button>
           </div>
           <div class="inspector-code-box" id="inspectorContent">{}</div>
         </div>
@@ -391,7 +392,105 @@
       </div>
     </section>
 
+    <!-- =======================================================================
+         SECTION 4: Continuous Learning & Q&A Memory Store (Spans Full Width)
+         ======================================================================= -->
+    <section class="panel continuous-learning-panel" id="continuousLearningPanel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <div class="learning-icon-pulse">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93l-.75.14V13h-2v-2.93l-.75-.14A4.002 4.002 0 0 1 12 2z"></path>
+              <path d="M18 10a6 6 0 0 1 6 6c0 3.31-2.69 6-6 6a5.99 5.99 0 0 1-5-2.68A5.99 5.99 0 0 1 8 22c-3.31 0-6-2.69-6-6a6 6 0 0 1 6-6c.34 0 .68.03 1 .09"></path>
+              <circle cx="12" cy="18" r="2"></circle>
+            </svg>
+          </div>
+          <div>
+            <h2 class="panel-title">4. Continuous Learning & Past Q&A Memory</h2>
+            <p class="panel-subtitle">Every question and answer is memorized. Adapt model weights directly on prior questions & answers with 1-click.</p>
+          </div>
+        </div>
+        <div class="learning-header-meta">
+          <span class="panel-badge highlight-badge" id="memoryStatsBadge">Loading memory...</span>
+        </div>
+      </div>
+
+      <!-- Action & Control Bar -->
+      <div class="learning-actions-bar">
+        <div class="learning-primary-actions">
+          <button type="button" class="btn-train-memory" id="btnTrainMemory" title="Fine-tune LoRA weights on all stored question-answer pairs">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span id="btnTrainMemoryText">Train Model on Previous Answers</span>
+          </button>
+
+          <div class="training-options-group">
+            <label for="selectEpochs" class="option-label">Epochs:</label>
+            <select id="selectEpochs" class="epochs-dropdown">
+              <option value="1">1 Epoch (Fastest)</option>
+              <option value="2" selected>2 Epochs (Recommended)</option>
+              <option value="3">3 Epochs (Deep Adaptation)</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn-clear-memory" id="btnClearMemory" title="Clear memory store and cached crops">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Clear Memory</span>
+          </button>
+
+          <button type="button" class="btn-clear-memory" id="btnExportDataset" style="color: var(--accent-cyan); border-color: rgba(0, 240, 255, 0.3); background: rgba(0, 240, 255, 0.08);" title="Export all memorized Q&A pairs as standard JSONL training dataset">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Export Dataset (JSONL)</span>
+          </button>
+        </div>
+
+        <div class="learning-mode-toggle">
+          <label class="switch-control">
+            <input type="checkbox" id="autoTrainToggle">
+            <span class="switch-slider"></span>
+          </label>
+          <span class="toggle-text">Auto-Train on New Queries</span>
+        </div>
+      </div>
+
+      <!-- Live Training Progress Notification Banner -->
+      <div class="training-status-card hidden" id="trainingStatusCard">
+        <div class="training-spinner" id="trainingSpinner"></div>
+        <div class="training-status-content">
+          <div class="training-status-title" id="trainingStatusTitle">Continuous LoRA Training in Progress</div>
+          <div class="training-status-desc" id="trainingStatusDesc">Computing forward passes and gradient steps over stored Q&A records...</div>
+        </div>
+      </div>
+
+      <!-- Stored Q&A History Grid -->
+      <div class="memory-history-container">
+        <div class="memory-section-label">
+          <span>Memorized Interactions (Active Training Dataset)</span>
+          <span class="memory-count-pill" id="memoryCountPill">0 Samples</span>
+        </div>
+        <div class="memory-cards-grid" id="memoryCardsGrid">
+          <div class="memory-empty-state" id="memoryEmptyState">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <p>No questions memorized yet. Ask any question above to record your first Q&A training sample.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
 
   <script src="app.js"></script>
 </body>

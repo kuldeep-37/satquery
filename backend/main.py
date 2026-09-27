@@ -28,6 +28,16 @@ from app.backend import SatQueryModel, export_geojson
 from backend.agentic_pipeline import run_agentic_pipeline, compute_optical_sar_fusion
 from backend.translator import get_supported_languages, translate_text
 from backend.pdf_report import generate_audit_pdf
+from backend.qa_memory import (
+    save_qa_record,
+    get_all_records,
+    get_memory_stats,
+    get_relevant_memory,
+    clear_memory,
+    update_qa_record,
+    DEFAULT_CROPS_DIR,
+)
+from backend.continuous_learner import train_lora_on_memory
 
 # Ensure UTF-8 output on Windows for Indian language logging
 if sys.platform == "win32":
@@ -227,7 +237,10 @@ async def analyze_image(
             detail=f"Model inference failed: {str(e)}",
         )
 
-    # 6. Agentic Reasoning & Contextual Paragraph Synthesis
+    # 6. Retrieve In-Context Memory (Relevant previous Q&As for immediate learning)
+    recalled_memories = get_relevant_memory(clean_query, top_k=2) if clean_query else []
+
+    # 7. Agentic Reasoning & Contextual Paragraph Synthesis
     agentic_result = run_agentic_pipeline(
         image=cropped_roi,
         query=query_for_model,
@@ -235,11 +248,26 @@ async def analyze_image(
         confidence=result.confidence,
         enable_sar=bool(enable_sar),
         language=target_lang,
+        prior_memories=recalled_memories,
     )
 
     paragraph_answer = agentic_result["detailed_paragraph"]
 
-    # 6. Format GeoJSON & Audit
+    # 8. Store Question & Answer Interaction into Continuous Learning Memory
+    memory_record = save_qa_record(
+        cropped_image=cropped_roi,
+        question=clean_query,
+        answer=paragraph_answer,
+        short_caption=agentic_result["short_caption"],
+        roi={"x": rx, "y": ry, "width": rw, "height": rh},
+        confidence=result.confidence,
+        intent=agentic_result["task_intent"],
+        language=target_lang,
+        image_filename=file.filename or "satellite_capture.png",
+    )
+    mem_stats = get_memory_stats()
+
+    # 9. Format GeoJSON & Audit
     geojson_feature = {
         "type": "Feature",
         "geometry": {
@@ -281,8 +309,10 @@ async def analyze_image(
     logger.info(
         f"Analyzed ROI: ({rx:.1f}, {ry:.1f}, {rw:.1f}x{rh:.1f}) | "
         f"Query: '{clean_query}' | Lang: {target_lang} | Conf: {result.confidence:.1%} | "
-        f"Intent: {agentic_result['task_intent']} | Latency: {result.latency_sec:.3f}s"
+        f"Intent: {agentic_result['task_intent']} | Stored Memory ID: #{memory_record['id']} | Latency: {result.latency_sec:.3f}s"
     )
+
+    crop_basename = os.path.basename(memory_record["crop_path"]) if memory_record.get("crop_path") else None
 
     return {
         "caption": paragraph_answer,
@@ -297,6 +327,16 @@ async def analyze_image(
             "sar_fusion": agentic_result["sar_fusion"],
             "language": target_lang,
             "english_paragraph": agentic_result.get("english_paragraph", ""),
+            "recalled_memories": recalled_memories,
+        },
+        "memory": {
+            "record_id": memory_record["id"],
+            "stored": True,
+            "crop_url": f"/memory/crops/{crop_basename}" if crop_basename else None,
+            "total_records": mem_stats["total_records"],
+            "trained_records": mem_stats["trained_records"],
+            "pending_training": mem_stats["pending_training"],
+            "recalled_count": len(recalled_memories),
         },
         "pipeline_metadata": {
             "sar_fusion_enabled": bool(enable_sar),
@@ -305,6 +345,81 @@ async def analyze_image(
             "device": MODEL_INSTANCE.device,
         },
     }
+
+
+@app.get("/memory", summary="Get Stored Q&A Memory Records and Learning Stats")
+async def get_memory_history(limit: Optional[int] = 50):
+    """Retrieve historical questions, answers, and training readiness."""
+    stats = get_memory_stats()
+    records = get_all_records(limit=int(limit or 50))
+    return {
+        "status": "ok",
+        "stats": stats,
+        "records": records,
+    }
+
+
+@app.post("/train/memory", summary="Fine-Tune Model Weights on Stored Previous Q&As")
+async def train_on_memory_endpoint(
+    epochs: Optional[int] = Form(2),
+    learning_rate: Optional[float] = Form(5e-5),
+    train_all: Optional[bool] = Form(True),
+):
+    """Execute continuous LoRA adaptation on accumulated question-answer pairs and reload weights."""
+    if MODEL_INSTANCE is None or not MODEL_INSTANCE.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Model is not initialized or ready for training.",
+        )
+
+    try:
+        report = train_lora_on_memory(
+            model_instance=MODEL_INSTANCE,
+            epochs=int(epochs or 2),
+            lr=float(learning_rate or 5e-5),
+            train_all=bool(train_all),
+        )
+        return report
+    except Exception as e:
+        logger.error(f"Continuous training execution failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Continuous training failed: {str(e)}",
+        )
+
+
+@app.post("/memory/clear", summary="Clear Stored Memory Records")
+async def clear_memory_endpoint():
+    """Clear all stored questions, answers, and cached image crops."""
+    clear_memory()
+    return {"status": "ok", "message": "Memory store cleared successfully.", "stats": get_memory_stats()}
+
+
+@app.post("/memory/update", summary="Update or Correct a Stored Answer (Human-in-the-Loop)")
+async def update_memory_answer_endpoint(
+    record_id: int = Form(...),
+    answer: str = Form(...),
+    short_caption: Optional[str] = Form(None),
+):
+    """Correct an answer in memory before training so the model learns from verified human feedback."""
+    success = update_qa_record(record_id=int(record_id), answer=answer, short_caption=short_caption)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Memory record #{record_id} not found.")
+    return {"status": "ok", "message": f"Record #{record_id} updated with verified feedback.", "stats": get_memory_stats()}
+
+
+@app.get("/memory/export", summary="Export Q&A Memory Dataset as JSONL")
+async def export_memory_dataset():
+    """Export all stored questions, answers, and image crop paths as a JSONL training dataset."""
+    from fastapi.responses import Response
+    records = get_all_records(limit=2000)
+    lines = [json.dumps(r) for r in records]
+    content = "\n".join(lines)
+    return Response(
+        content=content,
+        media_type="application/x-jsonlines",
+        headers={"Content-Disposition": "attachment; filename=satquery_qa_dataset.jsonl"},
+    )
 
 
 @app.get("/languages", summary="Supported Indian Regional Languages")
@@ -371,10 +486,14 @@ async def export_pdf_report(
     )
 
 
-# Mount frontend directory for seamless web access
+# Mount memory crops and frontend directory for seamless web access
 from fastapi.staticfiles import StaticFiles
+os.makedirs(DEFAULT_CROPS_DIR, exist_ok=True)
+app.mount("/memory/crops", StaticFiles(directory=DEFAULT_CROPS_DIR), name="memory_crops")
+
 frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 if os.path.isdir(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
 
 
