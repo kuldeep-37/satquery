@@ -1,12 +1,13 @@
-# Production Dockerfile for SatQuery AI Backend (FastAPI + PyTorch + LoRA)
+# Production Dockerfile for SatQuery AI Backend (Hugging Face Spaces / Render / Cloud Run)
 FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=8000 \
-    PYTHONPATH=/app
+    PORT=7860 \
+    PYTHONPATH=/app \
+    HOME=/home/appuser
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -14,30 +15,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user with UID 1000 (standard for Hugging Face Spaces security & permissions)
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p /app/outputs/memory_crops /app/outputs/blip-lora-satellite-adapter && \
+    chown -R appuser:appuser /app
+
 WORKDIR /app
 
 # Install Python requirements
 COPY backend/requirements.txt ./requirements.txt
-# Install PyTorch CPU wheels for lightweight container deployment (or standard GPU if building on CUDA host)
+# Install PyTorch CPU wheels for lightweight container deployment
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application backend code, adapter checkpoints, and sample assets
-COPY app/ ./app/
-COPY backend/ ./backend/
-COPY training/ ./training/
-COPY data_prep/ ./data_prep/
-COPY outputs/ ./outputs/
+# Copy application backend code, adapter checkpoints, and sample assets with correct ownership
+COPY --chown=appuser:appuser app/ ./app/
+COPY --chown=appuser:appuser backend/ ./backend/
+COPY --chown=appuser:appuser training/ ./training/
+COPY --chown=appuser:appuser data_prep/ ./data_prep/
+COPY --chown=appuser:appuser outputs/ ./outputs/
 
-# Create runtime directories for continuous active learning persistence
-RUN mkdir -p outputs/memory_crops outputs/blip-lora-satellite-adapter
+# Switch to non-root user
+USER appuser
 
-# Expose backend port (Render / Cloud Run automatically binds to PORT env)
+# Expose ports (7860 for Hugging Face Spaces, 8000 for local / custom)
+EXPOSE 7860
 EXPOSE 8000
 
-# Healthcheck to ensure microservice readiness
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
-
-# Start Uvicorn ASGI server
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT}"]
+# Start Uvicorn ASGI server (uses PORT env if set by host, else defaults to 7860)
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
